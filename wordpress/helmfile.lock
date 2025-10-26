@@ -1,7 +1,7 @@
 version: 0.166.0
 dependencies:
 - name: wordpress
-  repository: https://groundhog2k.github.io/helm-charts/
-  version: 0.14.2
-digest: sha256:08aec5f2ae65e1215cd0144520e74dfb2bfd2fb992f15cae25019c91a846b3b7
-generated: "2025-09-13T17:51:57.55638498+08:00"
+  repository: https://charts.bitnami.com/bitnami
+  version: 24.1.6
+digest: sha256:1bba8798d3cf539f725b3e81222ae95f13a5f3e4dc6cc4b8e2e0b5520d30863b
+generated: "2025-01-19T21:53:00.924249405+08:00"

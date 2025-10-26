@@ -130,7 +130,6 @@ Note that Digital Ocean load balancers and volumes are created via `kubectl`.
     2.  `set -a; . .env.velero; set +a; helmfile sync`
 21. Setup DNS records for domain names to point to the Kubernetes external IP (from load balancer).
    1.  Digital Ocean load balancer can only be associated with one domain name. So for any additional domain names, create a CNAME that points to the associated domain name (instead of directly to the IP).
-   2.  Currently Digital Ocean load balancer is tied to `dullai.com`, with `www.mydomain.com` pointing to `dullai.com` using CNAME. `mydomain.com` should point to the IP, as the root domain name cannot point to CNAME.
 22. Install `postgresql`.
    1.  `cd postgresql`
    2.  `kubectl create secret generic pgbouncer-env -n postgresql --from-env-file=.env.pgbouncer`
@@ -390,7 +389,7 @@ Note that Digital Ocean load balancers and volumes are created via `kubectl`.
 1. Install redis CLI.
    1. `apt-get install redis-tools`
 2. (From external) Run the command, and if everything works, the response will be `PONG`.
-   1. `redis-cli -h dullai.com -p 6379 -a '[password]' PING`
+   1. `redis-cli -h mydomain.com -p 6379 -a '[password]' PING`
 3. (From within cluster) Start a debug/test container, then run the command, and if everything works, the response will be `PONG`.
    1. `redis-cli -h redis-master.redis.svc.cluster.local -p 6379 -a '[password]' PING`
 

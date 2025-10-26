@@ -1,108 +1,19 @@
 # Get config options from
-# https://github.com/groundhog2k/helm-charts/blob/master/charts/wordpress/values.yaml
+# https://github.com/bitnami/charts/blob/main/bitnami/wordpress/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
 
 # For pulling any images from dockerhub
-imagePullSecrets:
-  - dockerhub-secret
+global:
+  imagePullSecrets:
+    - dockerhub-secret
 
-# Number of replicas
-replicaCount: 1
-
-# Set resources
-resources:
-  requests:
-    cpu: 100m
-    memory: 384Mi
-    ephemeral-storage: 50Mi
-  limits:
-    memory: 384Mi
-    ephemeral-storage: 2Gi
-
-# Set node affinity
-affinity:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: node-type
-          operator: In
-          values:
-          - worker
-
-# Setup service
+# WordPress service type
 service:
   type: ClusterIP
 
-# Setup ingress
-ingress:
-  enabled: true
-  className: nginx
-  annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-  hosts:
-    - host: dullai.com
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls:
-    - secretName: wordpress-tls
-      hosts:
-        - dullai.com
-
-
-########################
-
-
-# Install MariaDB
-mariadb:
-  enabled: true
-  settings:
-    rootPassword: {{ requiredEnv "MARIADB_ROOT_PASSWORD" | quote }}
-  userDatabase:
-    name: {{ requiredEnv "MARIADB_DATABASE" | quote }}
-    user: {{ requiredEnv "MARIADB_USER" | quote }}
-    password: {{ requiredEnv "MARIADB_PASSWORD" | quote }}
-  # mariadb is deployed as a Statefulset by default, so PVC will not be deleted during restart
-  storage:
-    className: do-block-storage
-    requestedSize: 5Gi
-
-  primary:
-    # Enable persistence using Persistent Volume Claims for MariaDB
-    persistence:
-      enabled: true
-      # Should not use retain policy. Leave management to Statefulset.
-      storageClass: do-block-storage
-      accessModes: ["ReadWriteOnce"]
-      size: 5Gi
-    # Set resources
-    resources:
-      requests:
-        cpu: 250m
-        memory: 512Mi
-        ephemeral-storage: 50Mi
-      limits:
-        memory: 512Mi
-        ephemeral-storage: 2Gi
-    # Set node affinity
-    affinity:
-      nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-          - matchExpressions:
-            - key: node-type
-              operator: In
-              values:
-              - worker
-  # Setup auth
-  auth:
-    database: {{ requiredEnv "MARIADB_DATABASE" | quote }}
-    rootPassword: {{ requiredEnv "MARIADB_ROOT_PASSWORD" | quote }}
-    username: {{ requiredEnv "MARIADB_USER" | quote }}
-    password: {{ requiredEnv "MARIADB_PASSWORD" | quote }}
-
-
-
+# Number of replicas
+replicaCount: 1
 
 # Enable persistence using Persistent Volume Claims for wordpress
 persistence:
@@ -168,11 +79,40 @@ wordpressScheme: https
 wordpressUsername: {{ requiredEnv "WORDPRESS_USER" | quote }}
 wordpressPassword: {{ requiredEnv "WORDPRESS_PASSWORD" | quote }}
 
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+    ephemeral-storage: 50Mi
+  limits:
+    memory: 384Mi
+    ephemeral-storage: 2Gi
 
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - worker
 
-
-
-
+# Setup ingress
+ingress:
+  enabled: true
+  certManager: true
+  tls: false
+  hostname: mydomain.com
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  extraTls:
+  - hosts:
+    - mydomain.com
+    secretName: wordpress-tls
 
 # Prometheus Exporter / Metrics configuration
 # This will enable a Apache exporter
@@ -199,3 +139,42 @@ networkPolicy:
     - ports:
       - port: 9117
         protocol: TCP
+
+# Install MariaDB
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/mariadb/values.yaml
+mariadb:
+  enabled: true
+  primary:
+    # Enable persistence using Persistent Volume Claims for MariaDB
+    persistence:
+      enabled: true
+      # Should not use retain policy. Leave management to Statefulset.
+      storageClass: do-block-storage
+      accessModes: ["ReadWriteOnce"]
+      size: 5Gi
+    # Set resources
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+        ephemeral-storage: 50Mi
+      limits:
+        memory: 512Mi
+        ephemeral-storage: 2Gi
+    # Set node affinity
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-type
+              operator: In
+              values:
+              - worker
+  # Setup auth
+  auth:
+    database: {{ requiredEnv "MARIADB_DATABASE" | quote }}
+    rootPassword: {{ requiredEnv "MARIADB_ROOT_PASSWORD" | quote }}
+    username: {{ requiredEnv "MARIADB_USER" | quote }}
+    password: {{ requiredEnv "MARIADB_PASSWORD" | quote }}

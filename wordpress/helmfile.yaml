@@ -1,15 +1,15 @@
 # To setup WordPress
 
 repositories:
-  - name: groundhog2k
-    url: https://groundhog2k.github.io/helm-charts/
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
 
 releases:
   - name: wordpress
     namespace: wordpress
     createNamespace: true
-    chart: groundhog2k/wordpress
-    version: ~0.14.2
+    chart: bitnami/wordpress
+    version: ~24.1.6
     # Append .gotmpl if the yaml should be rendered
     values:
       - values/wordpress-values.yaml.gotmpl
