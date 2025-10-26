@@ -1,0 +1,3 @@
+The `extended_clusterrole.yaml` file is generated with `k get ClusterRole grafana-grafana -o yaml > extended_clusterrole.yaml`.
+
+Then edit the file manually to delete the line for `metadata.resourceVersion`, `metadata.uid` and `metadata.creationTimestamp`.

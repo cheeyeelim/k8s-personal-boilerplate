@@ -1,0 +1,193 @@
+# Default values for pgbouncer.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: bitnami/pgbouncer
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "1.23.1-debian-12-r2"
+
+# For pulling any images from dockerhub
+imagePullSecrets:
+  - name: dockerhub-secret
+nameOverride: ""
+fullnameOverride: ""
+
+# Specify required runtime environment variables
+envFrom:
+  - secretRef:
+      name: pgbouncer-env
+
+# Setup initcontainers
+initContainers:
+  - name: wait-for-postgresql
+    image: busybox
+    command: ["/bin/sh","-c"]
+    args: ["until echo 'Waiting for postgresql...' && nc -vz -w 2 postgresql 5432; do echo 'Still waiting...'; sleep 2; done;"]
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 6432
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+    ephemeral-storage: 50Mi
+  limits:
+    cpu: 100m
+    memory: 192Mi
+    ephemeral-storage: 2Gi
+
+# Check for liveness on backend running process
+livenessProbe:
+  exec:
+    command:
+      - pgrep
+      - -f
+      - pgbouncer
+# Check for readiness on tcp socket
+readinessProbe:
+  tcpSocket:
+    port: 6432
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - worker
+
+# Set Prometheus metrics exporter
+metrics:
+  enabled: true
+
+  securityContext: {}
+
+  image:
+    repository: prometheuscommunity/pgbouncer-exporter
+    tag: v0.10.2
+    pullPolicy: IfNotPresent
+
+  # Define custom arguments
+  # Define connection string for scraping
+  args:
+  - "--web.listen-address=:9127"
+  - "--log.level=debug"
+  - "--pgBouncer.connectionString=user=$(PGBOUNCER_DB_USERNAME) password='$(PGBOUNCER_DB_PASSWORD)' host=127.0.0.1 port=$(PGBOUNCER_PORT) dbname=pgbouncer sslmode='disable'"
+
+  # Define destination port serving metrics
+  service:
+    ports:
+      name: pgb-metrics
+      port: 9127
+
+  # Check for liveness on backend running process
+  livenessProbe:
+    httpGet:
+      path: /
+      port: pgb-metrics
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  # Check for readiness on tcp socket
+  readinessProbe:
+    httpGet:
+      path: /
+      port: pgb-metrics
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 10
+  # Startup probe is required as it will need to wait for pgbouncer to be ready
+  startupProbe:
+    httpGet:
+      path: /
+      port: pgb-metrics
+    initialDelaySeconds: 90
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 20
+
+  # Setup resources
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi
+
+  # Setup serviceMonitor
+  serviceMonitor:
+    interval: 1m
+    scrapeTimeout: 40s

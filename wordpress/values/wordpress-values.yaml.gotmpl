@@ -1,0 +1,201 @@
+# Get config options from
+# https://github.com/groundhog2k/helm-charts/blob/master/charts/wordpress/values.yaml
+
+# For pulling any images from dockerhub
+imagePullSecrets:
+  - dockerhub-secret
+
+# Number of replicas
+replicaCount: 1
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+    ephemeral-storage: 50Mi
+  limits:
+    memory: 384Mi
+    ephemeral-storage: 2Gi
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - worker
+
+# Setup service
+service:
+  type: ClusterIP
+
+# Setup ingress
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: dullai.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: wordpress-tls
+      hosts:
+        - dullai.com
+
+
+########################
+
+
+# Install MariaDB
+mariadb:
+  enabled: true
+  settings:
+    rootPassword: {{ requiredEnv "MARIADB_ROOT_PASSWORD" | quote }}
+  userDatabase:
+    name: {{ requiredEnv "MARIADB_DATABASE" | quote }}
+    user: {{ requiredEnv "MARIADB_USER" | quote }}
+    password: {{ requiredEnv "MARIADB_PASSWORD" | quote }}
+  # mariadb is deployed as a Statefulset by default, so PVC will not be deleted during restart
+  storage:
+    className: do-block-storage
+    requestedSize: 5Gi
+
+  primary:
+    # Enable persistence using Persistent Volume Claims for MariaDB
+    persistence:
+      enabled: true
+      # Should not use retain policy. Leave management to Statefulset.
+      storageClass: do-block-storage
+      accessModes: ["ReadWriteOnce"]
+      size: 5Gi
+    # Set resources
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+        ephemeral-storage: 50Mi
+      limits:
+        memory: 512Mi
+        ephemeral-storage: 2Gi
+    # Set node affinity
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: node-type
+              operator: In
+              values:
+              - worker
+  # Setup auth
+  auth:
+    database: {{ requiredEnv "MARIADB_DATABASE" | quote }}
+    rootPassword: {{ requiredEnv "MARIADB_ROOT_PASSWORD" | quote }}
+    username: {{ requiredEnv "MARIADB_USER" | quote }}
+    password: {{ requiredEnv "MARIADB_PASSWORD" | quote }}
+
+
+
+
+# Enable persistence using Persistent Volume Claims for wordpress
+persistence:
+  enabled: true
+  storageClass: do-block-storage
+  accessModes: ["ReadWriteOnce"]
+  size: 5Gi
+
+# Setup init containers to setup WordPress base folder
+# Base folder will always be rewritten by chart during restart, so require a manual init copy
+# Refer to this for the use of empty-dir for persistence https://github.com/bitnami/charts/issues/30537
+initContainers:
+  - name: copy-custom-base
+    image: docker.io/bitnami/os-shell:12-debian-12-r31
+    command:
+      - /bin/bash
+    args:
+      - -ec
+      - |
+        #!/bin/bash
+
+        # Install s3cmd to access S3
+        apt-get update && apt-get -y install s3cmd
+
+        # Download file
+        cd /tmp
+        s3cmd get --access_key={{ requiredEnv "GENERAL_S3_ACCESS_KEY_ID" | quote }} --secret_key={{ requiredEnv "GENERAL_S3_SECRET_ACCESS_KEY" | quote }} --host=sfo3.digitaloceanspaces.com --host-bucket='%(bucket)s.sfo3.digitaloceanspaces.com' s3://general-k8s-bucket/wordpress/wordpress-site-content-custom.tgz
+
+        # Extract file
+        tar -xzf wordpress-site-content-custom.tgz
+
+        # Copy files over (except wp-config.php)
+        cd /tmp/bitnami/wordpress/ && rm wp-config.php && cp -r ./* /emptydir/app-base-dir/
+
+        # Regrant permission to default user
+        chown -R 1001:1001 /emptydir/app-base-dir/
+
+    volumeMounts:
+      - name: empty-dir
+        mountPath: /emptydir
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+      allowPrivilegeEscalation: true
+
+# Enable init container that changes the owner/group of the PV mount point to runAsUser:fsGroup
+volumePermissions:
+  enabled: true
+
+# WordPress information
+wordpressBlogName: "Dull AI"
+
+# Turn this to true if doing migration or connecting to existing database
+wordpressSkipInstall: true
+
+# Level of auto-updates to allow. Allowed values: major, minor or none.
+wordpressAutoUpdateLevel: minor
+
+# Scheme to use to generate WordPress URLs
+wordpressScheme: https
+
+# WordPress credentials
+wordpressUsername: {{ requiredEnv "WORDPRESS_USER" | quote }}
+wordpressPassword: {{ requiredEnv "WORDPRESS_PASSWORD" | quote }}
+
+
+
+
+
+
+
+# Prometheus Exporter / Metrics configuration
+# This will enable a Apache exporter
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 1m
+    scrapeTimeout: 40s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi
+
+# Setup network policy
+networkPolicy:
+  enabled: true
+  # Needs to manually add port for metrics (only for Bitnami Wordpress)
+  extraIngress:
+    - ports:
+      - port: 9117
+        protocol: TCP

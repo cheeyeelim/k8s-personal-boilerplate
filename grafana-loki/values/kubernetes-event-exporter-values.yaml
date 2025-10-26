@@ -1,0 +1,44 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/kubernetes-event-exporter/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Setup kubernetes-event-exporter
+replicaCount: 1
+
+# Setup config
+config:
+  logLevel: debug
+  logFormat: pretty
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+    ephemeral-storage: 50Mi
+  limits:
+    memory: 128Mi
+    ephemeral-storage: 2Gi
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - master
+
+# Prometheus Exporter / Metrics configuration
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true

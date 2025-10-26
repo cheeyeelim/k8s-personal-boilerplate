@@ -1,0 +1,110 @@
+# Get config options from
+# https://github.com/vmware-tanzu/helm-charts/blob/main/charts/velero/values.yaml
+
+# For pulling any images from dockerhub
+image:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Init containers to add to the Velero deployment's pod spec. At least one plugin provider image is required.
+# If the value is a string then it is evaluated as a template.
+# Digital Ocean requires both AWS and DO plugins
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.12.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+  - name: velero-plugin
+    image: digitalocean/velero-plugin:v1.1.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+# Setup main Velero configurations
+configuration:
+  # Parameters for the `default` BackupStorageLocation. See
+  # https://velero.io/docs/v1.15/api-types/backupstoragelocation/
+  backupStorageLocation:
+    - name: default
+      # This is set based on DO recommendation.
+      provider: aws
+      # Specify bucket details
+      bucket: {{ requiredEnv "VELERO_S3_BUCKET" }}
+      config:
+        region: {{ requiredEnv "VELERO_S3_REGION" }}
+        s3Url: https://{{ requiredEnv "VELERO_S3_REGION" }}.digitaloceanspaces.com
+
+  # Parameters for the `default` VolumeSnapshotLocation. See
+  # https://velero.io/docs/v1.15/api-types/volumesnapshotlocation/
+  volumeSnapshotLocation:
+    - name: default
+      provider: digitalocean.com/velero
+
+  # This ensures that data in pv is copied to external location, not just creating volumesnapshot
+  # Setting to true will rely on pod volume backup instead of volume snapshot
+  defaultSnapshotMoveData: true
+
+  # This ensures all volume data are backup by default (opt-oput strategy)
+  # Only pv annotated with `backup.velero.io/backup-volumes-excludes` will be excluded.
+  # This uses kopia to back up data
+  # See https://velero.io/docs/v1.16/file-system-backup/
+  defaultVolumesToFsBackup: true
+
+# Info about the DO Spaces credentials to be used by the Velero deployment
+credentials:
+  useSecret: true
+  # Name of secrets
+  name: velero-do-spaces-credentials
+  secretContents:
+    cloud: |
+      [default]
+      aws_access_key_id={{ requiredEnv "VELERO_S3_ACCESS_KEY_ID" | quote }}
+      aws_secret_access_key={{ requiredEnv "VELERO_S3_SECRET_ACCESS_KEY" | quote }}
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+    ephemeral-storage: 50Mi
+  limits:
+    memory: 512Mi
+    ephemeral-storage: 2Gi
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - master
+
+# Whether to deploy the node-agent daemonset.
+# This will enable file system backup (using kopia)
+# See https://velero.io/docs/v1.15/file-system-backup/
+deployNodeAgent: true
+# NOTE node-agent must run on all nodes, do not set affinity
+nodeAgent:
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 512Mi
+      ephemeral-storage: 2Gi
+
+# Setup Prometheus metrics
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+  nodeAgentPodMonitor:
+    enabled: true

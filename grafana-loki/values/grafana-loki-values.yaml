@@ -1,0 +1,239 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/grafana-loki/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+# See this to understand different grafana-loki components
+# https://grafana.com/docs/loki/latest/get-started/components/
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Setup distributor
+# Core component for incoming data
+distributor:
+  replicaCount: 1
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 128Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup ingester
+# Core component for incoming data
+ingester:
+  replicaCount: 1
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    storageClass: do-block-storage
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup compactor
+# Core component for incoming data
+# Required to store log data
+compactor:
+  enabled: true
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 128Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup querier
+# Core component for outgoing data
+querier:
+  replicaCount: 1
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    storageClass: do-block-storage
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 256Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup query frontend
+# Optional component for outgoing data
+# But good to have
+queryFrontend:
+  replicaCount: 1
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 128Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup gateway
+# Core component for outgoing data
+# Entry point for any query
+gateway:
+  enabled: true
+  replicaCount: 1
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 128Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup query scheduler
+# Optional component for outgoing data
+queryScheduler:
+  enabled: false
+
+# Setup index gateway
+# Supporting component
+indexGateway:
+  enabled: false
+
+# Setup ruler
+# Supporting component
+ruler:
+  enabled: false
+
+# Setup tableManager
+# Supporting component
+tableManager:
+  enabled: false
+
+# Setup promtail
+# NOTE that promtail is deprecated soon
+# https://grafana.com/docs/loki/latest/send-data/promtail/
+# NOTE must NOT restrict nodes for promtail
+# promtail needs to run on all nodes to scrape logs
+promtail:
+  enabled: true
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 128Mi
+      ephemeral-storage: 2Gi
+
+# Setup memcached
+memcachedchunks:
+  enabled: false
+memcachedfrontend:
+  enabled: false
+
+# Setup init container
+volumePermissions:
+  enabled: true
+
+# Prometheus Exporter / Metrics configuration
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true

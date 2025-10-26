@@ -1,0 +1,15 @@
+# To setup MLflow
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: mlflow
+    namespace: mlflow
+    createNamespace: true
+    chart: bitnami/mlflow
+    version: ~5.0.1
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/mlflow-values.yaml.gotmpl

@@ -1,0 +1,52 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/metrics-server/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Metrics server parameters
+replicas: 1
+
+# Must enable for kubectl top to work
+apiService:
+  create: true
+
+# Must set to true
+# Allows direct interfacing with Kubernetes network layer
+hostNetwork: true
+
+# Must provide additional args to work on DO K8s
+# Include default args from here https://github.com/bitnami/containers/blob/main/bitnami/metrics-server/0/debian-12/Dockerfile
+extraArgs:
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+
+service:
+  type: ClusterIP
+  ports:
+    https: 443
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+    ephemeral-storage: 50Mi
+  limits:
+    cpu: 100m
+    memory: 192Mi
+    ephemeral-storage: 2Gi
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - master

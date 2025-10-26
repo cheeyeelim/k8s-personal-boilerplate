@@ -1,0 +1,32 @@
+# To setup grafana
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: grafana
+    namespace: grafana
+    createNamespace: true
+    chart: bitnami/grafana-operator
+    version: ~4.9.13
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/grafana-values.yaml.gotmpl
+    hooks:
+    - events: ["cleanup"]
+      showlogs: true
+      command: "kubectl"
+      args: ["apply", "-f", "./resources/datasource"]
+    - events: ["cleanup"]
+      showlogs: true
+      command: "kubectl"
+      args: ["apply", "-f", "./resources/dashboard"]
+    - events: ["postuninstall"]
+      showlogs: true
+      command: "kubectl"
+      args: ["delete", "-f", "./resources/datasource"]
+    - events: ["postuninstall"]
+      showlogs: true
+      command: "kubectl"
+      args: ["delete", "-f", "./resources/dashboard"]

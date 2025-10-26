@@ -1,0 +1,107 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/grafana-operator/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Set name override to prevent overly long prometheus resource names
+# This will lead to Kubernetes - name must be no more than 63 characters error
+# See https://github.com/helm/charts/issues/13170
+fullnameOverride: grafana
+
+# Setup grafana operator
+operator:
+  enabled: true
+  replicaCount: 1
+
+  # Set environment variable
+  # This is needed to prevent a bug, see https://github.com/grafana/grafana-operator/issues/1959
+  extraEnvVars:
+  - name: ENFORCE_CACHE_LABELS
+    value: "off"
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 128Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+  # Setup prometheus metrics
+  prometheus:
+    serviceMonitor:
+      enabled: true
+
+# Enable grafana CRD deployment
+# Deploy a set of Grafana, GrafanaDashboard or GrafanaDataSource resources
+grafana:
+  enabled: true
+  replicaCount: 1
+
+  # Setup grafana config
+  # See for more details https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/
+  config:
+    security:
+      admin_user: {{ requiredEnv "GRAFANA_USER" | quote }}
+      admin_password: {{ requiredEnv "GRAFANA_PASSWORD" | quote }}
+
+  # Setup ingress
+  # NOTE this chart does not support extratls
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    host: grafana.mydomain.com
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    tls: true
+    tlsSecret: grafana-mydomain-tls
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    storageClass: do-block-storage
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+
+  # Setup labels to match with data source and dashboard
+  labels:
+    dashboards: grafana
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master

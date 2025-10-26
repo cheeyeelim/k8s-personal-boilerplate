@@ -1,0 +1,14 @@
+# To setup hashicorp-vault
+
+repositories:
+  - name: hashicorp
+    url: https://helm.releases.hashicorp.com
+
+releases:
+  - name: hashicorp-vault
+    namespace: hashicorp-vault
+    createNamespace: true
+    chart: hashicorp/vault
+    version: ~0.28.1
+    values:
+      - values/hashicorp-vault-values.yaml

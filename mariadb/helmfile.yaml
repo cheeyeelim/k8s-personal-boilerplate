@@ -1,0 +1,32 @@
+# To setup mariaDB
+
+repositories:
+  - name: mariadb-operator
+    url: https://helm.mariadb.com/mariadb-operator
+
+releases:
+  - name: mariadb-operator-crds
+    namespace: mariadb
+    createNamespace: true
+    chart: mariadb-operator/mariadb-operator-crds
+    version: ~25.8.3
+
+  - name: mariadb-operator
+    namespace: mariadb
+    createNamespace: true
+    chart: mariadb-operator/mariadb-operator
+    version: ~25.8.3
+    values:
+      - values/mariadb-operator-values.yaml
+
+  - name: mariadb-cluster
+    namespace: mariadb
+    createNamespace: true
+    chart: mariadb-operator/mariadb-cluster
+    version: ~25.8.3
+    needs:
+      - mariadb-operator-crds
+      - mariadb-operator
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/mariadb-cluster-values.yaml.gotmpl

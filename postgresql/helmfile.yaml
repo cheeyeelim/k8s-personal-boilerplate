@@ -1,0 +1,22 @@
+# To setup postgresql
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: postgresql
+    namespace: postgresql
+    createNamespace: true
+    chart: bitnami/postgresql
+    version: ~16.4.5
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/postgresql-values.yaml.gotmpl
+
+  - name: pgbouncer
+    namespace: postgresql
+    createNamespace: true
+    chart: ./charts/pgbouncer
+    values:
+      - values/pgbouncer-values.yaml

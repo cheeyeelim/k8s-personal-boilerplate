@@ -1,0 +1,107 @@
+# Get config options from
+# https://github.com/cert-manager/cert-manager/blob/master/deploy/charts/cert-manager/values.yaml
+
+# Install custom resource definitions (CRDs)
+crds:
+  enabled: true
+
+# Setup cert-manager controller
+replicaCount: 1
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+    ephemeral-storage: 50Mi
+  limits:
+    cpu: 100m
+    memory: 192Mi
+    ephemeral-storage: 2Gi
+
+# Set affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - master
+
+# Prometheus Exporter / Metrics configuration
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false
+
+# Setup cert-manager webhook
+webhook:
+  replicaCount: 1
+
+  # Set timeout
+  # NOTE must be set to between 1 and 29 seconds
+  # https://docs.digitalocean.com/support/clusterlint-error-fixes/#admission-controller-webhook-timeout
+  timeoutSeconds: 20
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set affinity
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: preferred
+            operator: In
+            values:
+            - master
+
+# Setup cert-manager cainjector
+cainjector:
+  enabled: true
+  replicaCount: 1
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set affinity
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: preferred
+            operator: In
+            values:
+            - master
+
+# Setup Prometheus
+# Enable Prometheus monitoring for the cert-manager controller and webhook.
+prometheus:
+  enabled: true
+
+  servicemonitor:
+    enabled: true
+    interval: 1m
+    scrapeTimeout: 40s

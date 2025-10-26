@@ -1,0 +1,28 @@
+# To setup Airflow
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+# NOTE remember to update bitnami/airflow container version if chart is updated
+# Must make sure this matches the container version used in the chart
+# See https://github.com/bitnami/charts/blob/main/bitnami/airflow/values.yaml
+values:
+  - airflow:
+      image:
+        tag: 3.0.1-debian-12-r4
+
+# --- ensures that the values are loaded and parsed before rendering the latter part of the helmfile.yaml
+---
+
+releases:
+  - name: airflow
+    namespace: airflow
+    createNamespace: true
+    chart: bitnami/airflow
+    version: ~24.1.2
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/airflow-values.yaml.gotmpl
+      - image:
+          tag: {{ .Values.airflow.image.tag }}

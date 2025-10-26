@@ -1,0 +1,282 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/kube-prometheus/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Set name override to prevent overly long prometheus resource names
+# This will lead to Kubernetes - name must be no more than 63 characters error
+# See https://github.com/helm/charts/issues/13170
+fullnameOverride: prometheus
+
+# Setup Prometheus operator
+operator:
+  enabled: true
+
+  # Setup service
+  service:
+    type: ClusterIP
+    ports:
+      http: 8080
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup Prometheus
+prometheus:
+  enabled: true
+
+  replicaCount: 1
+  shards: 1
+
+  # Setup service
+  service:
+    type: ClusterIP
+    ports:
+      http: 9090
+
+  # Setup ingress
+  ingress:
+    enabled: false
+
+  # Must manually define storageSpec (i.e. PVC)
+  # Otherwise will error out due to long default pvc name
+  storageSpec:
+    volumeClaimTemplate:
+      metadata:
+        name: prometheus-prometheus
+      spec:
+        storageClassName: do-block-storage
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi
+  persistence:
+    enabled: false
+
+  # Set key default retention settings will affect storage requirement
+  # Must be set otherwise will crash due to insufficient storage
+  # Size limit should be set to 80% of max volume size
+  # See https://prometheus.io/docs/prometheus/latest/storage/
+  retention: 10d
+  retentionSize: 8GB
+
+  # Set default scrape settings (can be overridden by individual servicemonitors)
+  # Make scrape slower to ease system loads
+  scrapeInterval: 1m
+  scrapeTimeout: 40s
+
+  # Setup init containers to change PV permission
+  # Require init container to perform manual intervention
+  # Otherwise will get this error https://github.com/aws/eks-charts/issues/21
+  initContainers:
+    - name: change-pv-permission
+      image: docker.io/bitnami/os-shell:12-debian-12-r31
+      command:
+        - /bin/bash
+      args:
+        - -ec
+        - |
+          find /prometheus -mindepth 0 -maxdepth 1 -not -name ".snapshot" -not -name "lost+found" | xargs -r chown -R 1001:1001
+      volumeMounts:
+        - name: prometheus-prometheus
+          mountPath: /prometheus
+      securityContext:
+        runAsNonRoot: false
+        runAsUser: 0
+        allowPrivilegeEscalation: true
+
+  # Set resources
+  # Any memory limits lower than this will cause Prometheus to crash
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1024Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 1536Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+  # Setup admin API
+  enableAdminAPI: false
+
+  # Setup thanos sidecar
+  thanos:
+    create: false
+
+  # Setup config reloader sidecar
+  configReloader:
+    service:
+      enabled: false
+
+# Setup Alertmanager
+alertmanager:
+  enabled: true
+
+  replicaCount: 1
+
+  # Setup service
+  service:
+    type: ClusterIP
+    ports:
+      http: 9093
+
+  # Setup ingress
+  ingress:
+    enabled: false
+
+  # Must manually define storageSpec (i.e. PVC)
+  # Otherwise will error out due to long default pvc name
+  storageSpec:
+    volumeClaimTemplate:
+      metadata:
+        name: prometheus-alertmanager
+      spec:
+        storageClassName: do-block-storage
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+  persistence:
+    enabled: false
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup additional exporters
+exporters:
+  # node-exporter must run on all nodes (do not set affinity)
+  node-exporter:
+    enabled: true
+  kube-state-metrics:
+    enabled: true
+
+# Setup node-exporter
+node-exporter:
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+# Setup kube-state-metrics
+kube-state-metrics:
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup blackbox exporter
+# It scrapes additional kube-system services not covered elsewhere
+blackboxExporter:
+  enabled: true
+
+  replicaCount: 1
+
+  # Setup service
+  service:
+    type: ClusterIP
+    ports:
+      http: 19115
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+# Setup kubelet service monitor
+kubelet:
+  enabled: true
+  namespace: kube-system
+
+# Disables certain default service monitors setup
+# These are disabled as they are managed by DOKS so not accessible
+kubeScheduler:
+  enabled: false

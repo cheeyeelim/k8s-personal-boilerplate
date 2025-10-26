@@ -1,0 +1,16 @@
+# To setup mydomain dashboards
+
+releases:
+  - name: dash-hdb-resale
+    namespace: dash-dashboard
+    createNamespace: true
+    chart: ./charts/dash-hdb-resale
+    values:
+      - values/dash-hdb-resale-values.yaml
+
+  - name: dash-fire-planner
+    namespace: dash-dashboard
+    createNamespace: true
+    chart: ./charts/dash-fire-planner
+    values:
+      - values/dash-fire-planner-values.yaml

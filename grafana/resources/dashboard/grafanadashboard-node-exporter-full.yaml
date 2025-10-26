@@ -1,0 +1,13 @@
+# Refer to https://github.com/grafana/grafana-operator/blob/master/docs/docs/dashboards.md
+# Get common dashboards from https://grafana.com/grafana/dashboards/
+
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: grafanadashboard-node-exporter-full
+  namespace: grafana
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  url: "https://grafana.com/api/dashboards/1860/revisions/37/download"

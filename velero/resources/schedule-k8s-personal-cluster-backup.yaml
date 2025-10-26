@@ -1,0 +1,30 @@
+# See example definition here https://velero.io/docs/v1.16/api-types/schedule/
+
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: k8s-personal-cluster-backup
+  namespace: velero
+spec:
+  paused: false
+  # This schedule will run every Sunday at 2 AM
+  # It follows the cron format
+  schedule: 0 2 * * Sun
+
+  # Specifies whether to use OwnerReferences on backups created by this Schedule.
+  # Notice: if set to true, when schedule is deleted, backups will be deleted too. Optional.
+  useOwnerReferencesInBackup: false
+
+  # Template is the spec that should be used for each backup triggered by this schedule.
+  template:
+    csiSnapshotTimeout: 10m
+    # This includes all namespaces.
+    includedNamespaces:
+    - '*'
+    # This includes all resources.
+    includedResources:
+    - '*'
+    # Whether to include cluster-scoped resources.
+    includeClusterResources: true
+    # Set default TTL to 30 days
+    ttl: 720h

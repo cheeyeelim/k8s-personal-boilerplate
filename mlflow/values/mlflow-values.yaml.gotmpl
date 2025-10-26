@@ -1,0 +1,136 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/mlflow/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Setup MLflow tracking server
+tracking:
+  enabled: true
+  replicaCount: 1
+  containerPorts:
+    http: 5000
+
+  auth:
+    enabled: true
+    username: {{ requiredEnv "MLFLOW_TRACKING_USERNAME" | quote }}
+    password: {{ requiredEnv "MLFLOW_TRACKING_PASSWORD" | quote }}
+    extraOverrides:
+      default_permission: NO_PERMISSIONS
+      authorization_function: mlflow.server.auth:authenticate_request_basic_auth
+
+  tls:
+    enabled: false
+
+  # Disable default loadbalancer setup
+  # Should not bypass internal cluster loadbalancer
+  service:
+    type: ClusterIP
+
+  # Add an init container to run mlflow db upgrade
+  runUpgradeDB: true
+
+  # Setup ingress
+  # Additional annotations to allow large size request from/to MLflow
+  ingress:
+    enabled: true
+    tls: false
+    ingressClassName: nginx
+    hostname: mlflow.mydomain.com
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    extraTls:
+    - hosts:
+      - mlflow.mydomain.com
+      secretName: mlflow-mydomain-tls
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    storageClass: do-block-storage
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1024Mi
+      ephemeral-storage: 50Mi
+    limits:
+      cpu: 375m
+      memory: 1536Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+  # Prometheus Exporter / Metrics configuration
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 1m
+      scrapeTimeout: 40s
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+        ephemeral-storage: 50Mi
+      limits:
+        memory: 64Mi
+        ephemeral-storage: 2Gi
+
+# Setup MLflow run server
+run:
+  enabled: false
+
+  # # Setup persistence
+  # persistence:
+  #   enabled: true
+  #   storageClass: do-block-storage
+  #   accessModes: ["ReadWriteOnce"]
+  #   size: 5Gi
+
+# There is a bug in current chart - cannot enable this
+# Enable init container that changes the owner/group of the PV mount point to runAsUser:fsGroup
+volumePermissions:
+  enabled: false
+
+# Disable internal & setup external postgresql
+postgresql:
+  enabled: false
+
+externalDatabase:
+  dialectDriver: {{ requiredEnv "MLFLOW_DB_DIALECT" | quote }}
+  host: {{ requiredEnv "MLFLOW_DB_HOST" | quote }}
+  port: {{ requiredEnv "MLFLOW_DB_PORT" }}
+  user: {{ requiredEnv "MLFLOW_DB_USER" | quote }}
+  password: {{ requiredEnv "MLFLOW_DB_PASSWORD" | quote }}
+  database: {{ requiredEnv "MLFLOW_DB_DATABASE" | quote }}
+  authDatabase: {{ requiredEnv "MLFLOW_DB_AUTH_DATABASE" | quote }}
+
+# Disable minio & setup external S3
+minio:
+  enabled: false
+
+externalS3:
+  host: {{ requiredEnv "MLFLOW_S3_HOST" | quote }}
+  accessKeyID: {{ requiredEnv "MLFLOW_S3_ACCESS_KEY_ID" | quote }}
+  accessKeySecret: {{ requiredEnv "MLFLOW_S3_SECRET_ACCESS_KEY" | quote }}
+  protocol: https
+  bucket: {{ requiredEnv "MLFLOW_S3_BUCKET" | quote }}
+  serveArtifacts: true

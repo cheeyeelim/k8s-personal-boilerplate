@@ -1,0 +1,9 @@
+# To setup mydomain home page
+
+releases:
+  - name: homepage
+    namespace: homepage
+    createNamespace: true
+    chart: ./charts/homepage
+    values:
+      - values/homepage-values.yaml

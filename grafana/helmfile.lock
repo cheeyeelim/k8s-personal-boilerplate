@@ -1,0 +1,7 @@
+version: 0.166.0
+dependencies:
+- name: grafana-operator
+  repository: https://charts.bitnami.com/bitnami
+  version: 4.9.13
+digest: sha256:14e3df182724e746c3676f26f3110288c18f2baefe2ea265ada75c3b399bdf8e
+generated: "2025-04-27T18:48:10.219219665+08:00"

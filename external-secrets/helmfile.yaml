@@ -1,0 +1,24 @@
+  # To setup external-secrets operator
+
+repositories:
+  - name: external-secrets
+    url: https://charts.external-secrets.io
+
+releases:
+  - name: external-secrets
+    namespace: external-secrets
+    createNamespace: true
+    chart: external-secrets/external-secrets
+    version: ~0.10.4
+    values:
+      - values/external-secrets-values.yaml
+    # ClusterSecretStore cannot be installed using hooks as it takes time for external-secrets-webhook to be ready
+    hooks:
+    - events: ["cleanup"]
+      showlogs: true
+      command: "kubectl"
+      args: ["apply", "-f", "./resources/external-secrets-dockerhub-mydomain-cluster-external-secret.yaml"]
+    - events: ["postuninstall"]
+      showlogs: true
+      command: "kubectl"
+      args: ["delete", "-f", "./resources/external-secrets-dockerhub-mydomain-cluster-external-secret.yaml"]

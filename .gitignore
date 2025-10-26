@@ -1,0 +1,54 @@
+*.py[cod]
+
+# C extensions
+*.so
+
+# Packages
+*.egg
+*.egg-info
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
+
+# Unit test / coverage reports
+.coverage
+.tox
+nosetests.xml
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Complexity
+output/*.html
+output/*/index.html
+
+# Virtualenvs
+env/
+.venv/
+
+# Environment variables
+.env*
+
+# Development database
+*.db
+
+# Helm chart binaries
+*.tgz
+
+# Backup files and folders
+backup/
+
+# Sealed-secrets files
+pub-sealed-secrets.pem

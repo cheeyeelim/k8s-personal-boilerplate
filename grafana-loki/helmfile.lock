@@ -1,0 +1,10 @@
+version: 0.166.0
+dependencies:
+- name: grafana-loki
+  repository: https://charts.bitnami.com/bitnami
+  version: 4.8.3
+- name: kubernetes-event-exporter
+  repository: https://charts.bitnami.com/bitnami
+  version: 3.5.0
+digest: sha256:9d9bc532438bd6b140782d43e2117b65ad29a2c8a1b916c914509bc8942aa6eb
+generated: "2025-04-28T16:18:21.82272172+08:00"

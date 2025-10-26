@@ -1,0 +1,82 @@
+# Get config options from
+# https://github.com/mariadb-operator/mariadb-operator/blob/main/deploy/charts/mariadb-operator/values.yaml
+
+# Set resources
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+    ephemeral-storage: 50Mi
+  limits:
+    memory: 64Mi
+    ephemeral-storage: 2Gi
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - worker
+
+# Set prometheus monitoring
+metrics:
+  enabled: true
+
+# Setup webhook
+webhook:
+  enabled: true
+
+  # Setup TLS
+  cert:
+    certManager:
+      enabled: true
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+# Setup cert-controller
+certController:
+  enabled: true
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker

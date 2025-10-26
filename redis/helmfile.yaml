@@ -1,0 +1,15 @@
+# To setup redis
+
+repositories:
+  - name: bitnami
+    url: https://charts.bitnami.com/bitnami
+
+releases:
+  - name: redis
+    namespace: redis
+    createNamespace: true
+    chart: bitnami/redis
+    version: ~20.0.3
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/redis-values.yaml.gotmpl

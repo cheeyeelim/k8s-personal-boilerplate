@@ -1,0 +1,128 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/redis/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Simple setup
+architecture: standalone
+
+# Setup auth
+auth:
+  enabled: true
+  password: {{ requiredEnv "REDIS_PASSWORD" | quote }}
+
+# Setup redis master
+master:
+  count: 1
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    # Should not use retain policy. Leave management to Statefulset.
+    storageClass: do-block-storage
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+
+  # Setup service type
+  service:
+    type: ClusterIP
+    portNames:
+      redis: tcp-redis
+    ports:
+      redis: 6379
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+# Setup redis replicas
+replica:
+  replicaCount: 1
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    # Should not use retain policy. Leave management to Statefulset.
+    storageClass: do-block-storage
+    accessModes: ["ReadWriteOnce"]
+    size: 5Gi
+
+  # Setup service type
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+# Setup redis sentinel
+sentinel:
+  enabled: false
+
+# Setup tls
+tls:
+  enabled: false
+  authClients: true
+
+# Prometheus Exporter / Metrics configuration
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 1m
+    scrapeTimeout: 40s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi
+
+# Enable init container that changes the owner/group of the PV mount point to runAsUser:fsGroup
+volumePermissions:
+  enabled: true

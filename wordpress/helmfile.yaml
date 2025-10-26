@@ -1,0 +1,15 @@
+# To setup WordPress
+
+repositories:
+  - name: groundhog2k
+    url: https://groundhog2k.github.io/helm-charts/
+
+releases:
+  - name: wordpress
+    namespace: wordpress
+    createNamespace: true
+    chart: groundhog2k/wordpress
+    version: ~0.14.2
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/wordpress-values.yaml.gotmpl

@@ -1,0 +1,280 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/airflow/values.yaml
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+auth:
+  username: {{ requiredEnv "_AIRFLOW_WWW_USER_USERNAME" | quote }}
+  password: {{ requiredEnv "_AIRFLOW_WWW_USER_PASSWORD" | quote }}
+  fernetKey: {{ requiredEnv "AIRFLOW__CORE__FERNET_KEY" | quote }}
+  secretKey: {{ requiredEnv "AIRFLOW__API__SECRET_KEY" | quote }}
+  jwtSecretKey: {{ requiredEnv "AIRFLOW__API_AUTH__JWT_SECRET" | quote }}
+
+# Specify executor type
+# NOTE KubernetesExecutor does not require redis,
+# but it needs RBAC and service account creation
+executor: KubernetesExecutor
+
+# Disable load examples
+loadExamples: false
+
+# Setup Airflow configurations using environment variables
+# The names and values must be in quotes.
+# See Bitnami Airflow container environment variables https://github.com/bitnami/containers/tree/main/bitnami/airflow
+# See Airflow environment variables https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html
+extraEnvVars:
+  - name: 'AIRFLOW__LOGGING__REMOTE_LOGGING'
+    value: '{{ requiredEnv "AIRFLOW__LOGGING__REMOTE_LOGGING" }}'
+  - name: 'AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER'
+    value: '{{ requiredEnv "AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER" }}'
+  - name: 'AIRFLOW_CONN_S3_DO_CONN'
+    value: '{{ requiredEnv "AIRFLOW_CONN_S3_DO_CONN" }}'
+  - name: 'AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID'
+    value: '{{ requiredEnv "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID" }}'
+
+# Load DAGs from git repositories
+# DAGs from remote repo will be sync with a sidecar periodically
+dags:
+  enabled: true
+  repositories:
+    - repository: https://{{ requiredEnv "GITHUB_USERNAME" }}:{{ requiredEnv "GITHUB_PERSONAL_ACCESS_TOKEN" | quote }}@github.com/mydomain/mydomain-airflow
+      branch: main
+      name: mydomain-airflow-dags
+      path: /airflow/dags/
+
+# Add environment variables to all Airflow pods
+# Required during DAG runtime
+# extraEnvVarsSecrets:
+#   - dag-general-env
+#   - dag-hdb-resale-env
+
+# Setup Airflow webserver
+# Should not set baseUrl under normal setup
+web:
+  replicaCount: 1
+
+  # NOTE this is needed for KubernetesExecutor
+  automountServiceAccountToken: true
+
+  # Set resources
+  # NOTE do not set CPU limit as this component has CPU spike that will get it killed
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1024Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 1536Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+# Setup Airflow scheduler
+scheduler:
+  replicaCount: 1
+
+  # NOTE this is needed for KubernetesExecutor
+  automountServiceAccountToken: true
+
+  # Set resources
+  # NOTE do not set CPU limit as this component has CPU spike that will get it killed
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 768Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+# Setup DAG processor
+dagProcessor:
+  enabled: true
+  replicaCount: 1
+
+  # Set resources
+  # NOTE do not set CPU limit as this component has CPU spike that will get it killed
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 768Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+# Setup triggerer
+triggerer:
+  enabled: false
+
+# Setup Airflow worker
+# This will be spawned on demand by KubernetesExecutor
+# NOTE there are specific node pools setup just for Airflow worker on Digital Ocean
+# Do not set the HPA under here
+worker:
+  # This should be set to zero as default so that workers will scale down to zero
+  replicaCount: 0
+
+  # Setup init container to download and mount requirements.txt
+  initContainers:
+    - name: copy-mount-requirements
+      image: docker.io/bitnami/os-shell:12-debian-12-r31
+      command:
+        - /bin/bash
+      args:
+        - -ec
+        - |
+          #!/bin/bash
+
+          # Download file
+          cd /tmp/requirements
+          curl https://raw.githubusercontent.com/mydomain/mydomain-airflow/refs/heads/main/requirements.txt -H "Authorization: Token {{ requiredEnv "GITHUB_PERSONAL_ACCESS_TOKEN" | quote }}" -o requirements.txt
+
+      volumeMounts:
+        - name: requirements-file
+          mountPath: /tmp/requirements
+
+  # Setup extra volumeMounts
+  # Point to downloaded requirements.txt, where worker pods will auto install from
+  # See https://github.com/bitnami/charts/tree/main/bitnami/airflow#install-extra-python-packages
+  extraVolumeMounts:
+    - name: requirements-file
+      mountPath: /bitnami/python/requirements.txt
+      subPath: requirements.txt
+
+  # Setup extra volumeMounts
+  # To store downloaded requirements.txt
+  extraVolumes:
+    - name: requirements-file
+      emptyDir: {}
+
+  # Set resources
+  # NOTE this is set to match the size of one node in the specified node pool
+  # See https://docs.digitalocean.com/products/kubernetes/details/limits/#allocatable-memory
+  resources:
+    requests:
+      cpu: 800m
+      memory: 6Gi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 13Gi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - executor-small
+
+  # # This completely overrides the pod template to be used for Airflow worker
+  # # To modify part of templates, adjust the conf under this worker section
+  # # NOTE only use this if needs to use custom image
+  # podTemplate: {}
+
+# Should not bypass internal cluster loadbalancer
+service:
+  type: ClusterIP
+
+# Setup overall ingress
+ingress:
+  enabled: true
+  tls: false
+  ingressClassName: nginx
+  hostname: airflow.mydomain.com
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  extraTls:
+  - hosts:
+    - airflow.mydomain.com
+    secretName: airflow-mydomain-tls
+
+# Setup RBAC and service account
+# NOTE they are required by KubernetesExecutor
+serviceAccount:
+  create: true
+  automountServiceAccountToken: true
+rbac:
+  create: true
+  # This will be appended to pre-specified rules under
+  # https://github.com/bitnami/charts/blob/main/bitnami/airflow/templates/rbac/role.yaml
+  # rbac rules should include all specified under airflow pod launcher role
+  # https://github.com/apache/airflow/blob/main/chart/templates/rbac/pod-launcher-role.yaml
+  rules:
+    - apiGroups:
+        - ""
+      resources:
+        - "events"
+      verbs:
+        - "list"
+
+# Prometheus Exporter / Metrics configuration
+# This will enable a StatsD exporter
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 1m
+    scrapeTimeout: 40s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi
+
+# Disable internal & setup external postgresql
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: {{ requiredEnv "AIRFLOW_DATABASE_HOST" | quote }}
+  port: {{ requiredEnv "AIRFLOW_DATABASE_PORT_NUMBER" }}
+  user: {{ requiredEnv "AIRFLOW_DATABASE_USERNAME" | quote }}
+  password: {{ requiredEnv "AIRFLOW_DATABASE_PASSWORD" | quote }}
+  database: {{ requiredEnv "AIRFLOW_DATABASE_NAME" | quote }}
+
+# Disable redis
+# Not needed by KubernetesExecutor
+redis:
+  enabled: false

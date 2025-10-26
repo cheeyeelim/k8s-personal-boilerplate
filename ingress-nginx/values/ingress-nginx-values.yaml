@@ -1,0 +1,63 @@
+# Get config options from
+# https://github.com/kubernetes/ingress-nginx/blob/main/charts/ingress-nginx/values.yaml
+
+controller:
+  config:
+    # Let ingress controller see real IP of clients
+    use-proxy-protocol: "true"
+
+  service:
+    # Let cloud backend to do active healthchecks
+    externalTrafficPolicy: Local
+    # Digital Ocean custom integration requirements
+    annotations:
+      service.beta.kubernetes.io/do-loadbalancer-name: "k8s-personal-load-balancer"
+      # Note that this is required for pods in the same cluster to communicate
+      # https://github.com/digitalocean/digitalocean-cloud-controller-manager/blob/master/docs/controllers/services/examples/README.md
+      service.beta.kubernetes.io/do-loadbalancer-hostname: "dullai.com"
+      service.beta.kubernetes.io/do-loadbalancer-enable-proxy-protocol: "true"
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      ephemeral-storage: 50Mi
+    limits:
+      cpu: 100m
+      memory: 192Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - master
+
+  # Prometheus Exporter / Metrics configuration
+  metrics:
+    port: 10254
+    portName: metrics
+    enabled: true
+    service:
+      enabled: true
+      annotations:
+        prometheus.io/port: "10254"
+        prometheus.io/scrape: "true"
+    serviceMonitor:
+      enabled: true
+      namespace: ingress-nginx
+      scrapeInterval: 1m
+
+# Support specific TCP & UDP services
+# NOTE that the suffix PROXY will decode proxy protocol for services that cannot handle them (e.g. redis)
+# https://kubernetes.github.io/ingress-nginx/user-guide/exposing-tcp-udp-services/
+tcp:
+  "6379": "redis/redis-master:6379:PROXY:"
+  "5432": "postgresql/postgresql:5432:PROXY:"
+  "6432": "postgresql/pgbouncer:6432:PROXY:"

@@ -1,0 +1,104 @@
+# Get config options from
+# https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
+# Should go with default Bitnami container registry and images
+# No need to specify custom registries or images
+
+# For pulling any images from dockerhub
+global:
+  imagePullSecrets:
+    - dockerhub-secret
+
+# Setup architecture
+architecture: standalone
+
+# Setup auth for admin user
+# Requires the superuser right from postgres user
+auth:
+  enablePostgresUser: true
+  postgresPassword: {{ requiredEnv "POSTGRES_PASSWORD" | quote }}
+  replicationUsername: {{ requiredEnv "POSTGRES_REPLICATION_USERNAME" | quote }}
+  replicationPassword: {{ requiredEnv "POSTGRES_REPLICATION_PASSWORD" | quote }}
+
+# Setup tls
+tls:
+  enabled: false
+
+# Setup primary cluster
+primary:
+  name: primary
+  resourcesPreset: medium
+
+  # Setup initialisation scripts
+  initdb:
+    scriptsSecret: init-script
+    user: {{ requiredEnv "POSTGRES_USERNAME" | quote }}
+    password: {{ requiredEnv "POSTGRES_PASSWORD" | quote }}
+
+  # Setup environment variables containing credentials for initdb
+  extraEnvVarsSecret: init-env
+
+  # Setup persistence
+  persistence:
+    enabled: true
+    # Should not use retain policy. Leave management to Statefulset.
+    storageClass: do-block-storage-xfs
+    accessModes: ["ReadWriteOnce"]
+    size: 20Gi
+
+  # Setup service
+  service:
+    type: ClusterIP
+    ports:
+      postgresql: 5432
+
+  # Set resources
+  resources:
+    requests:
+      cpu: 500m
+      memory: 768Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 768Mi
+      ephemeral-storage: 2Gi
+
+  # Set node affinity
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: node-type
+            operator: In
+            values:
+            - worker
+
+  # Configure startup probe
+  # The start will be slow due to init script
+  startupProbe:
+    enabled: true
+
+# Setup backup
+# NOTE this backup to another PVC in Kubernetes, so not ideal
+# Should setup a job to backup directly to S3.
+backup:
+  enabled: false
+
+# Enable init container that changes the owner/group of the PV mount point to runAsUser:fsGroup
+volumePermissions:
+  enabled: true
+
+# Prometheus Exporter / Metrics configuration
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 1m
+    scrapeTimeout: 40s
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 50Mi
+    limits:
+      memory: 64Mi
+      ephemeral-storage: 2Gi

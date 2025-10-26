@@ -1,0 +1,41 @@
+# Get config options from https://github.com/mariadb-operator/mariadb-operator/blob/main/deploy/charts/mariadb-cluster/values.yaml
+# Refer to https://github.com/mariadb-operator/mariadb-operator/blob/main/docs/helm.md#mariadb-cluster-helm-chart
+
+mariadb:
+  rootPasswordSecretKeyRef:
+    name: root
+    key: {{ requiredEnv "MARIADB_ROOT_PASSWORD" | quote }}
+  storage:
+    size: 5Gi
+  replicas: 1
+  galera:
+    enabled: true
+
+databases:
+  - name: {{ requiredEnv "MARIADB_DATABASE" }}
+    cleanupPolicy: Delete
+    requeueInterval: 10h
+    retryInterval: 30s
+
+users:
+  - name: {{ requiredEnv "MARIADB_USER" }}
+    passwordSecretKeyRef:
+      name: {{ requiredEnv "MARIADB_USER" }}
+      key: {{ requiredEnv "MARIADB_PASSWORD" | quote }}
+    host: "%"
+    cleanupPolicy: Delete
+    requeueInterval: 10h
+    retryInterval: 30s
+
+grants:
+  - name: {{ requiredEnv "MARIADB_USER" }}
+    privileges:
+      - "ALL PRIVILEGES"
+    database: {{ requiredEnv "MARIADB_DATABASE" }}
+    table: "*"
+    username: {{ requiredEnv "MARIADB_USER" }}
+    grantOption: true
+    host: "%"
+    cleanupPolicy: Delete
+    requeueInterval: 10h
+    retryInterval: 30s

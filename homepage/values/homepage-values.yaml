@@ -1,0 +1,150 @@
+# Default values for homepage.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: mydomain/mydomain_homepage
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+# Used for authenticating to private container registry
+imagePullSecrets:
+  - name: dockerhub-secret
+nameOverride: ""
+fullnameOverride: ""
+
+# Specify required runtime environment variables
+envFrom:
+  - secretRef:
+      name: homepage-env
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+# This sets the security context for the entire pod
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# This sets the security context for the container
+# Can be used to override the podSecurityContext
+securityContext:
+  privileged: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  # The user and group should follow the user used in the Dockerfile build
+  runAsUser: 1001
+  runAsGroup: 1001
+  seccompProfile:
+  type: RuntimeDefault
+
+service:
+  type: ClusterIP
+  port: 5000
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: mydomain.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+    - host: www.mydomain.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - hosts:
+        - mydomain.com
+        - www.mydomain.com
+      secretName: mydomain-tls
+
+# Set resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+    ephemeral-storage: 50Mi
+  limits:
+    # Require a higher cpu limit otherwise will crash
+    cpu: 300m
+    memory: 384Mi
+    ephemeral-storage: 2Gi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes:
+  # Needs an emptyDir to provide writable mounts
+  - name: empty-dir
+    emptyDir: {}
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts:
+  # Need this to make tmp folder writable after setting securityContext
+  - name: empty-dir
+    mountPath: /tmp
+
+nodeSelector: {}
+
+tolerations: []
+
+# Set node affinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: node-type
+          operator: In
+          values:
+          - worker
+
+# Set Prometheus metrics exporter
+metrics:
+  enabled: true
+
+  # Define destination port serving metrics
+  service:
+    ports:
+      name: metrics
+      port: 9500
+
+  # Setup serviceMonitor
+  serviceMonitor:
+    interval: 1m
+    scrapeTimeout: 40s

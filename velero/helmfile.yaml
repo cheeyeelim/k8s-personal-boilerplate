@@ -1,0 +1,24 @@
+# To setup velero
+
+repositories:
+  - name: vmware-tanzu
+    url: https://vmware-tanzu.github.io/helm-charts
+
+releases:
+  - name: velero
+    namespace: velero
+    createNamespace: true
+    chart: vmware-tanzu/velero
+    version: ~9.0.4
+    # Append .gotmpl if the yaml should be rendered
+    values:
+      - values/velero-values.yaml.gotmpl
+    hooks:
+    - events: ["cleanup"]
+      showlogs: true
+      command: "kubectl"
+      args: ["apply", "-f", "./resources/schedule-k8s-personal-cluster-backup.yaml"]
+    - events: ["postuninstall"]
+      showlogs: true
+      command: "kubectl"
+      args: ["delete", "-f", "./resources/schedule-k8s-personal-cluster-backup.yaml"]
